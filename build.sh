@@ -1,10 +1,12 @@
 #!/bin/bash
 set -e
 
-DOCKER_RUN_IMAGE=nagios
+DOCKER_RUN_IMAGE=nagios4
 
-docker build -t "${DOCKER_RUN_IMAGE}" .
+#sudo docker stop ${DOCKER_RUN_IMAGE}
+#sudo docker rm ${DOCKER_RUN_IMAGE}
 
-docker images
-docker run -d --rm --name "${DOCKER_RUN_IMAGE}" -p 8080:80 -t "${DOCKER_RUN_IMAGE}"
+sudo docker build -t "${DOCKER_RUN_IMAGE}"  . 
+#--no-cache
+
 

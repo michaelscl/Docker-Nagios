@@ -1,31 +1,41 @@
-FROM ubuntu:16.04
-MAINTAINER Jason Rivers <jason@jasonrivers.co.uk>
+FROM ubuntu:20.04
+LABEL maintainer="Michaels inspired by Jason Rivers <jason@jasonrivers.co.uk>"
 
-ENV NAGIOS_HOME            /opt/nagios
-ENV NAGIOS_USER            nagios
-ENV NAGIOS_GROUP           nagios
-ENV NAGIOS_CMDUSER         nagios
-ENV NAGIOS_CMDGROUP        nagios
 ENV NAGIOS_FQDN            nagios.example.com
 ENV NAGIOSADMIN_USER       nagiosadmin
 ENV NAGIOSADMIN_PASS       nagios
-ENV APACHE_RUN_USER        nagios
-ENV APACHE_RUN_GROUP       nagios
-ENV NAGIOS_TIMEZONE        UTC
-ENV DEBIAN_FRONTEND        noninteractive
-ENV NG_NAGIOS_CONFIG_FILE  ${NAGIOS_HOME}/etc/nagios.cfg
-ENV NG_CGI_DIR             ${NAGIOS_HOME}/sbin
-ENV NG_WWW_DIR             ${NAGIOS_HOME}/share/nagiosgraph
-ENV NG_CGI_URL             /cgi-bin
-ENV NAGIOS_BRANCH          nagios-4.4.5
-ENV NAGIOS_PLUGINS_BRANCH  release-2.2.1
-ENV NRPE_BRANCH            nrpe-3.2.1
+ENV NAGIOS_TIMEZONE        Europe/Prague
+ENV MAIL_FROM              nagios@nagios.com
 
+ARG NAGIOS_HOME=/opt/nagios
+ARG NAGIOS_USER=nagios
+ARG NAGIOS_GROUP=nagios
+ARG NAGIOS_CMDUSER=nagios
+ARG NAGIOS_CMDGROUP=nagios
+ARG APACHE_RUN_USER=nagios
+ARG APACHE_RUN_GROUP=nagios
+ARG DEBIAN_FRONTEND=noninteractive
+ARG NG_NAGIOS_CONFIG_FILE=${NAGIOS_HOME}/etc/nagios.cfg
+ARG NG_CGI_DIR=${NAGIOS_HOME}/sbin
+ARG NG_WWW_DIR=${NAGIOS_HOME}/share/nagiosgraph
+ARG NG_CGI_URL=/cgi-bin
+# https://github.com/NagiosEnterprises/nagioscore/tags
+ARG NAGIOS_BRANCH=nagios-4.4.6
+# https://github.com/nagios-plugins/nagios-plugins/tags
+ARG NAGIOS_PLUGINS_BRANCH=release-2.3.3
+# https://github.com/NagiosEnterprises/nrpe/tags
+ARG NRPE_BRANCH=nrpe-4.0.3
+# https://github.com/NagiosEnterprises/ncpa/blob/master/client/check_ncpa.py
+ARG NCPA=2.2.2
+
+ARG LIVESTATUS=1.4.0p38
+ARG WMIC=1.3.14-3
+ARG WMIPLUS=1.65
 
 RUN echo postfix postfix/main_mailer_type string "'Internet Site'" | debconf-set-selections  && \
     echo postfix postfix/mynetworks string "127.0.0.0/8" | debconf-set-selections            && \
     echo postfix postfix/mailname string ${NAGIOS_FQDN} | debconf-set-selections             && \
-    apt-get update && apt-get install -y    \
+    apt-get update && apt-get upgrade -y && apt-get install -y \
         apache2                             \
         apache2-utils                       \
         autoconf                            \
@@ -38,48 +48,57 @@ RUN echo postfix postfix/main_mailer_type string "'Internet Site'" | debconf-set
         gettext                             \
         git                                 \
         gperf                               \
+        graphviz                            \
         iputils-ping                        \
         jq                                  \
         libapache2-mod-php                  \
+        libboost-all-dev                    \
         libcache-memcached-perl             \
         libcgi-pm-perl                      \
         libdbd-mysql-perl                   \
         libdbi-dev                          \
         libdbi-perl                         \
-        libfreeradius-client-dev            \
-        libgd2-xpm-dev                      \
+        libfreeradius-dev                   \
+        libgd-dev                           \
         libgd-gd2-perl                      \
         libjson-perl                        \
         libldap2-dev                        \
         libmysqlclient-dev                  \
         libnagios-object-perl               \
-        libnagios-plugin-perl               \
+#        libnagios-plugin-perl              \
         libnet-snmp-perl                    \
         libnet-snmp-perl                    \
         libnet-tftp-perl                    \
         libnet-xmpp-perl                    \
+        libnumber-format-perl               \
+        libconfig-inifiles-perl             \
+        libdatetime-perl                    \
         libpq-dev                           \
         libredis-perl                       \
         librrds-perl                        \
         libssl-dev                          \
         libswitch-perl                      \
         libwww-perl                         \
+        librrd-dev                          \
         m4                                  \
+        mc                                  \
         netcat                              \
         parallel                            \
         php-cli                             \
         php-gd                              \
         postfix                             \
-        python-pip                          \
+        python3-pip                         \
+        software-properties-common          \
         rsyslog                             \
         runit                               \
         smbclient                           \
         snmp                                \
         snmpd                               \
         snmp-mibs-downloader                \
+        sudo                                \
         unzip                               \
-        python                              \
-                                                && \
+        python3                             \
+        && \
     apt-get clean && rm -Rf /var/lib/apt/lists/*
 
 RUN ( egrep -i "^${NAGIOS_GROUP}"    /etc/group || groupadd $NAGIOS_GROUP    )                         && \
@@ -133,7 +152,7 @@ RUN cd /tmp                                                                     
     ln -sf ${NAGIOS_HOME}/libexec/utils.pm /usr/lib/nagios/plugins                            && \
     cd /tmp && rm -Rf nagios-plugins
 
-RUN wget -O ${NAGIOS_HOME}/libexec/check_ncpa.py https://raw.githubusercontent.com/NagiosEnterprises/ncpa/v2.0.5/client/check_ncpa.py  && \
+RUN wget -O ${NAGIOS_HOME}/libexec/check_ncpa.py https://github.com/NagiosEnterprises/ncpa/blob/v${NCPA}/client/check_ncpa.py  && \
     chmod +x ${NAGIOS_HOME}/libexec/check_ncpa.py
 
 RUN cd /tmp                                                                  && \
@@ -162,7 +181,6 @@ RUN cd /tmp                                                          && \
     cd /tmp && rm -Rf nagiosgraph
 
 RUN cd /opt                                                                         && \
-    pip install pymssql                                                             && \
     git clone https://github.com/willixix/naglio-plugins.git     WL-Nagios-Plugins  && \
     git clone https://github.com/JasonRivers/nagios-plugins.git  JR-Nagios-Plugins  && \
     git clone https://github.com/justintime/nagios-plugins.git   JE-Nagios-Plugins  && \
@@ -172,6 +190,7 @@ RUN cd /opt                                                                     
     cp /opt/JE-Nagios-Plugins/check_mem/check_mem.pl ${NAGIOS_HOME}/libexec/           && \
     cp /opt/nagios-mssql/check_mssql_database.py ${NAGIOS_HOME}/libexec/                         && \
     cp /opt/nagios-mssql/check_mssql_server.py ${NAGIOS_HOME}/libexec/
+
 
 
 RUN sed -i.bak 's/.*\=www\-data//g' /etc/apache2/envvars
@@ -188,10 +207,11 @@ RUN mkdir -p -m 0755 /usr/share/snmp/mibs                     && \
     touch /usr/share/snmp/mibs/.foo                           && \
     ln -s /usr/share/snmp/mibs ${NAGIOS_HOME}/libexec/mibs    && \
     ln -s ${NAGIOS_HOME}/bin/nagios /usr/local/bin/nagios     && \
-    download-mibs && echo "mibs +ALL" > /etc/snmp/snmp.conf
+    download-mibs && echo "mibs +ALL" > /etc/snmp/snmp.conf   && \
+    rm -f ${NAGIOS_HOME}/etc/objects/*
 
-RUN sed -i 's,/bin/mail,/usr/bin/mail,' ${NAGIOS_HOME}/etc/objects/commands.cfg  && \
-    sed -i 's,/usr/usr,/usr,'           ${NAGIOS_HOME}/etc/objects/commands.cfg
+#RUN sed -i 's,/bin/mail,/usr/bin/mail,' ${NAGIOS_HOME}/etc/objects/commands.cfg  && \
+#    sed -i 's,/usr/usr,/usr,'           ${NAGIOS_HOME}/etc/objects/commands.cfg
 
 RUN cp /etc/services /var/spool/postfix/etc/  && \
     echo "smtp_address_preference = ipv4" >> /etc/postfix/main.cf
@@ -225,8 +245,46 @@ RUN chmod +x /usr/local/bin/start_nagios        && \
 
 RUN cd /opt/nagiosgraph/etc && \
     sh fix-nagiosgraph-multiple-selection.sh
-
 RUN rm /opt/nagiosgraph/etc/fix-nagiosgraph-multiple-selection.sh
+
+################
+# MK live status
+COPY src/mk-livestatus-${LIVESTATUS}.tar.gz /tmp/mk-livestatus.tar.gz
+RUN cd /tmp && \
+    tar zxf mk-livestatus.tar.gz && \
+    rm -f mk-livestatus.tar.gz && \
+    mv mk-livestatus* mk-livestatus && \
+    cd mk-livestatus && \
+    ./configure --with-nagios4 && \
+    make && \
+    make install && \
+    rm -rf /tmp/mk-livestatus
+RUN sed -i "s,#broker_module=/somewhere/module1.o,broker_module=/usr/local/lib/mk-livestatus/livestatus.o ${NAGIOS_HOME}/var/rw/live debug=0," ${NAGIOS_HOME}/etc/nagios.cfg
+
+################
+# WMIC
+COPY src/wmi-client_${WMIC}_amd64.deb /tmp/wmic.deb
+RUN cd /tmp && \
+    dpkg -x wmic.deb wmic && \
+    cp wmic/usr/bin/wmic /usr/local/bin && \
+    rm -rf wmic*
+
+################
+## CHEK_WMI_PLUS
+COPY src/check_wmi_plus.v${WMIPLUS}.tar.gz /opt/Check_WMI_Plus/check_wmi_plus.v${WMIPLUS}.tar.gz
+RUN cd /opt/Check_WMI_Plus && \
+    tar zxvf check_wmi_plus.v${WMIPLUS}.tar.gz && \
+    rm check_wmi_plus.v${WMIPLUS}.tar.gz && \
+    cd /opt/Check_WMI_Plus/etc/check_wmi_plus && \
+    cp check_wmi_plus.conf.sample check_wmi_plus.conf && \
+    sed -i "s/^\$base_dir.*/\$base_dir=\'\/opt\/Check_WMI_Plus\';/" check_wmi_plus.conf && \
+    sed -i "s/^\$wmic_command.*/\$wmic_command=\"\/usr\/local\/bin\/wmic\";/" check_wmi_plus.conf && \
+    cd /opt/Check_WMI_Plus && \
+    sed -i "s/^my \$conf_file.*$/my \$conf_file=\'\/opt\/Check_WMI_Plus\/etc\/check_wmi_plus\/check_wmi_plus.conf\';/" check_wmi_plus.pl
+
+# POSTFIX set mail from
+RUN echo "sender_canonical_maps = hash:/etc/postfix/canonical" >> /etc/postfix/main.cf && \
+    sed -i '3iif ! [ "${MAIL_FROM}" = "" ]; then\necho "root     ${MAIL_FROM}" > /etc/postfix/canonical\n/usr/sbin/postmap hash:/etc/postfix/canonical\nfi' /etc/sv/postfix/run
 
 # enable all runit services
 RUN ln -s /etc/sv/* /etc/service
@@ -240,8 +298,13 @@ RUN echo "ServerName ${NAGIOS_FQDN}" > /etc/apache2/conf-available/servername.co
     ln -s /etc/apache2/conf-available/servername.conf /etc/apache2/conf-enabled/servername.conf    && \
     ln -s /etc/apache2/conf-available/timezone.conf /etc/apache2/conf-enabled/timezone.conf
 
+#Set www access
+RUN htpasswd -b -c ${NAGIOS_HOME}/etc/htpasswd.users ${NAGIOSADMIN_USER} ${NAGIOSADMIN_PASS} && \
+    sed -i "s/nagiosadmin/${NAGIOSADMIN_USER}/g" ${NAGIOS_HOME}/etc/cgi.cfg
+
 EXPOSE 80
 
-VOLUME "${NAGIOS_HOME}/var" "${NAGIOS_HOME}/etc" "/var/log/apache2" "/opt/Custom-Nagios-Plugins" "/opt/nagiosgraph/var" "/opt/nagiosgraph/etc"
+#VOLUME "${NAGIOS_HOME}/var" "${NAGIOS_HOME}/etc" "/var/log/apache2" "/opt/custom-nagios-plugins" "/opt/nagiosgraph/var" "/opt/nagiosgraph/etc"
+VOLUME "${NAGIOS_HOME}/var" "${NAGIOS_HOME}/etc/objects"
 
 CMD [ "/usr/local/bin/start_nagios" ]
