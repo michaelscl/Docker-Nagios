@@ -4,5 +4,7 @@
 . /etc/default/apache-htcacheclean
 
 export TZ="${NAGIOS_TIMEZONE}"
+export APACHE_RUN_USER="${APACHE_RUN_USER}"
+export APACHE_RUN_GROUP="${APACHE_RUN_GROUP}"
 
 exec /usr/sbin/apache2 -D NO_DETACH
